@@ -1279,7 +1279,7 @@ impl<'a, 'tcx> SpanlessHash<'a, 'tcx> {
                 self.hash_ty(mut_ty.ty);
                 mut_ty.mutbl.hash(&mut self.s);
             },
-            TyKind::Ref(lifetime, mut_ty) => {
+            TyKind::Ref(lifetime, mut_ty, _) => {
                 self.hash_lifetime(lifetime);
                 self.hash_ty(mut_ty.ty);
                 mut_ty.mutbl.hash(&mut self.s);

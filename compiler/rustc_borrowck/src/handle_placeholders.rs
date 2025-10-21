@@ -219,7 +219,12 @@ pub(super) fn region_definitions<'tcx>(
             _ => NllRegionVariableOrigin::Existential { name: None },
         };
 
-        let definition = RegionDefinition { origin, universe: info.universe, external_name: None };
+        let definition = RegionDefinition {
+            origin,
+            universe: info.universe,
+            external_name: None,
+            view_spec_fields: None,
+        };
 
         has_placeholders |= matches!(origin, NllRegionVariableOrigin::Placeholder(_));
         definitions.push(definition);

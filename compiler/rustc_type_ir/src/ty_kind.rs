@@ -110,6 +110,7 @@ pub enum TyKind<I: Interner> {
 
     /// A reference; a pointer with an associated lifetime. Written as
     /// `&'a mut T` or `&'a T`.
+    /// With view types: `&'a {mut field_a, field_b} T`.
     Ref(I::Region, I::Ty, Mutability),
 
     /// The anonymous type of a function declaration/definition. Each
@@ -348,7 +349,9 @@ impl<I: Interner> fmt::Debug for TyKind<I> {
             Pat(t, p) => write!(f, "pattern_type!({t:?} is {p:?})"),
             Slice(t) => write!(f, "[{:?}]", &t),
             RawPtr(ty, mutbl) => write!(f, "*{} {:?}", mutbl.ptr_str(), ty),
-            Ref(r, t, m) => write!(f, "&{:?} {}{:?}", r, m.prefix_str(), t),
+            Ref(r, t, m) => {
+                write!(f, "&{:?} {}{:?}", r, m.prefix_str(), t)
+            }
             FnDef(d, s) => f.debug_tuple("FnDef").field(d).field(&s).finish(),
             FnPtr(sig_tys, hdr) => write!(f, "{:?}", sig_tys.with(*hdr)),
             // FIXME(unsafe_binder): print this like `unsafe<'a> T<'a>`.

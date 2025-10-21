@@ -27,6 +27,13 @@ Session.vim
 .vs/
 .dir-locals.el
 
+## Test artifacts (view types development)
+mir_dump/
+*.rlib
+test-bug-*
+minimal-view-test
+minimal-view-test.mir
+
 ## Tool
 .valgrindrc
 .cargo

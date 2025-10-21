@@ -1,0 +1,50 @@
+error: cannot access field `field_b` through view-typed parameter `self`
+  --> $DIR/validation-error.rs:21:9
+   |
+LL |         self.field_b = String::from("hello");
+   |         ^^^^^^^^^^^^
+   |
+note: view type only allows access to: `field_a`
+  --> $DIR/validation-error.rs:20:25
+   |
+LL |     fn invalid_access_b(&{mut field_a} mut self) {
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: cannot access field `field_c` through view-typed parameter `self`
+  --> $DIR/validation-error.rs:26:9
+   |
+LL |         self.field_c.push(1);
+   |         ^^^^^^^^^^^^
+   |
+note: view type only allows access to: `field_a`
+  --> $DIR/validation-error.rs:25:25
+   |
+LL |     fn invalid_access_c(&{mut field_a} mut self) {
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: cannot access field `field_c` through view-typed parameter `self`
+  --> $DIR/validation-error.rs:39:9
+   |
+LL |         self.field_c.push(2);
+   |         ^^^^^^^^^^^^
+   |
+note: view type only allows access to: `field_a`, `field_b`
+  --> $DIR/validation-error.rs:36:25
+   |
+LL |     fn invalid_multiple(&{mut field_a, mut field_b} mut self) {
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: cannot access field `field_b` through view-typed parameter `self`
+  --> $DIR/validation-error.rs:49:9
+   |
+LL |         self.field_b.clone()
+   |         ^^^^^^^^^^^^
+   |
+note: view type only allows access to: `field_a`
+  --> $DIR/validation-error.rs:48:26
+   |
+LL |     fn invalid_immutable(&{field_a} self) -> String {
+   |                          ^^^^^^^^^^^^^^^
+
+error: aborting due to 4 previous errors
+

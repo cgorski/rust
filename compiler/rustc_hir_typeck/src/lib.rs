@@ -39,6 +39,7 @@ mod place_op;
 mod rvalue_scopes;
 mod typeck_root_ctxt;
 mod upvar;
+mod view_types;
 mod writeback;
 
 pub use coercion::can_coerce;
@@ -180,6 +181,9 @@ fn typeck_with_inspect<'tcx>(
         }
 
         check_fn(&mut fcx, fn_sig, None, decl, def_id, body, tcx.features().unsized_fn_params());
+
+        // Validate view type annotations
+        view_types::check_view_types(tcx, def_id);
     } else {
         let expected_type = if let Some(infer_ty) = infer_type_if_missing(&fcx, node) {
             infer_ty

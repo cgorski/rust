@@ -3222,7 +3222,53 @@ impl<'a> Parser<'a> {
             token::And => {
                 let has_lifetime = is_lifetime(self, 1);
                 let skip_lifetime_count = has_lifetime as usize;
-                let eself = if is_isolated_self(self, skip_lifetime_count + 1) {
+
+                // Check if we have a view spec: &{...} or &'a {...}
+                let has_view_spec =
+                    self.look_ahead(skip_lifetime_count + 1, |t| t == &token::OpenBrace);
+
+                let eself = if has_view_spec {
+                    // Parse: &'lifetime? {view_spec} mut? self
+                    self.bump(); // &
+                    let lifetime = has_lifetime.then(|| self.expect_lifetime());
+
+                    // Parse view spec
+                    let view_spec = if self.token == token::OpenBrace {
+                        Some(self.parse_view_spec()?)
+                    } else {
+                        None
+                    };
+
+                    // Check for mut
+                    let mutbl =
+                        if self.eat_keyword(exp!(Mut)) { Mutability::Mut } else { Mutability::Not };
+
+                    // Expect 'self' keyword
+                    if !is_isolated_self(self, 0) {
+                        return Ok(None);
+                    }
+
+                    // Consume 'self'
+                    let self_ident = expect_self_ident(self);
+                    let self_hi = self.prev_token.span;
+
+                    // Construct explicit type: &'lifetime {view_spec} mut? Self
+                    let self_ty_ident = Ident::with_dummy_span(kw::SelfUpper);
+                    let self_ty = self.mk_ty(
+                        self_hi,
+                        ast::TyKind::Path(None, ast::Path::from_ident(self_ty_ident)),
+                    );
+
+                    let mt = ast::MutTy { ty: self_ty, mutbl };
+                    let ref_ty =
+                        self.mk_ty(eself_lo.to(self_hi), ast::TyKind::Ref(lifetime, mt, view_spec));
+
+                    return Ok(Some(Param::from_self(
+                        AttrVec::default(),
+                        source_map::respan(eself_lo.to(self_hi), SelfKind::Explicit(ref_ty, mutbl)),
+                        self_ident,
+                    )));
+                } else if is_isolated_self(self, skip_lifetime_count + 1) {
                     // `&{'lt} self`
                     self.bump(); // &
                     let lifetime = has_lifetime.then(|| self.expect_lifetime());

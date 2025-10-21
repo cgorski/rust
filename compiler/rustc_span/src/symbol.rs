@@ -2402,6 +2402,7 @@ symbols! {
         vfp2,
         vis,
         visible_private_types,
+        view_types,
         volatile,
         volatile_copy_memory,
         volatile_copy_nonoverlapping_memory,

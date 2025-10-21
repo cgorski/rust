@@ -122,6 +122,8 @@ use crate::ty::layout::LayoutError;
 use crate::ty::util::Discr;
 use crate::ty::walk::TypeWalker;
 
+pub use view_spec::{FieldAccess, ViewSpec};
+
 pub mod abstract_const;
 pub mod adjustment;
 pub mod cast;
@@ -137,6 +139,7 @@ pub mod relate;
 pub mod significant_drop_order;
 pub mod trait_def;
 pub mod util;
+pub mod view_spec;
 pub mod vtable;
 
 mod adt;

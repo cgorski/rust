@@ -1,0 +1,15 @@
+error[E0499]: cannot borrow `s.a` as mutable more than once at a time
+  --> $DIR/test-01-same-field-mut-mut.rs:38:5
+   |
+LL |     let a_ref = &mut s.a;
+   |                 -------- first mutable borrow occurs here
+...
+LL |     s.use_a_mut();
+   |     ^ second mutable borrow occurs here
+...
+LL |     *a_ref = 10;
+   |     ----------- first borrow later used here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0499`.

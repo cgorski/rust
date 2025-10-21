@@ -1,0 +1,132 @@
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:95:25
+   |
+LL |     fn use_other_fields(&{counter, name} self) -> (usize, &str) {
+   |                         ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:122:25
+   |
+LL |     fn get_metadata_ref(&{metadata} self) -> &str {
+   |                         ^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:132:25
+   |
+LL |     fn get_metadata_mut(&{mut metadata} mut self) -> &mut String {
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:148:21
+   |
+LL |     fn get_borrowed(&{borrowed} self) -> &'a str {
+   |                     ^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:152:22
+   |
+LL |     fn get_owned_ref(&{owned} self) -> &str {
+   |                      ^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:255:18
+   |
+LL |     fn get_first(&{first} self) -> &'a str {
+   |                  ^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:259:19
+   |
+LL |     fn get_second(&{second} self) -> &'b str {
+   |                   ^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:263:17
+   |
+LL |     fn get_both(&{first, second} self) -> (&'a str, &'b str) {
+   |                 ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:267:18
+   |
+LL |     fn get_owned(&{owned} self) -> &str {
+   |                  ^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:328:18
+   |
+LL |     fn get_immut(&{immut_field} self) -> &[i32] {
+   |                  ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:332:16
+   |
+LL |     fn get_mut(&{mut mut_field} mut self) -> &mut Vec<String> {
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:356:19
+   |
+LL |     fn first_line(&{text} self) -> &str {
+   |                   ^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: view-typed functions cannot return references
+  --> $DIR/drop-and-lifetimes.rs:364:22
+   |
+LL |     fn slice_numbers(&{numbers} self, start: usize, end: usize) -> &[i32] {
+   |                      ^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: aborting due to 13 previous errors
+

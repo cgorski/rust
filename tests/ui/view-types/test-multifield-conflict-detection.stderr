@@ -1,0 +1,27 @@
+error[E0499]: cannot borrow `self.y` as mutable more than once at a time
+  --> $DIR/test-multifield-conflict-detection.rs:42:9
+   |
+LL |         let _y_ref = &mut self.y;
+   |                      ----------- first mutable borrow occurs here
+...
+LL |         self.use_z_and_y();
+   |         ^^^^ second mutable borrow occurs here
+...
+LL |         *_y_ref = 100;
+   |         ------------- first borrow later used here
+
+error[E0499]: cannot borrow `self.b` as mutable more than once at a time
+  --> $DIR/test-multifield-conflict-detection.rs:85:9
+   |
+LL |         let _b_ref = &mut self.b;
+   |                      ----------- first mutable borrow occurs here
+...
+LL |         self.uses_b_and_c();
+   |         ^^^^ second mutable borrow occurs here
+LL |
+LL |         *_b_ref = 100;
+   |         ------------- first borrow later used here
+
+error: aborting due to 2 previous errors
+
+For more information about this error, try `rustc --explain E0499`.

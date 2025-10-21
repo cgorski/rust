@@ -164,8 +164,8 @@ LL | pub fn parens(x: &i32) -> &impl Clone { x }
    = note: all lifetimes in scope will be captured by `impl Trait`s in edition 2024
 help: use the precise capturing `use<...>` syntax to make the captures explicit
    |
-LL | pub fn parens(x: &i32) -> &(impl Clone + use<>) { x }
-   |                            +           ++++++++
+LL | pub fn parens(x: &i32) -> &(impl Clone + use<>, _) { x }
+   |                            +           +++++++++++
 
 error: aborting due to 8 previous errors
 

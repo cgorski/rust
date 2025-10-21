@@ -1,0 +1,69 @@
+# Coq compilation artifacts
+*.vo
+*.vok
+*.vos
+*.glob
+*.aux
+.*.aux
+
+# Coq cache directories
+.coq-native/
+.lia.cache
+.nia.cache
+
+# CoqIDE specific
+*.coq-ide
+
+# Proof General / Emacs
+*.v#
+.#*.v
+*~
+\#*\#
+
+# VSCode / VSCoq
+.vscode/
+*.code-workspace
+
+# Build directories
+_build/
+_opam/
+
+# Documentation build artifacts
+*.pdf
+*.dvi
+*.log
+*.toc
+*.out
+*.aux
+
+# Makefile artifacts
+.depend
+Makefile.coq
+Makefile.coq.conf
+.coqdeps.d
+
+# OCaml artifacts (if using extraction)
+*.cmi
+*.cmo
+*.cmx
+*.o
+*.a
+*.cmxa
+*.cma
+
+# Editor backup files
+*~
+*.swp
+*.swo
+*.bak
+.DS_Store
+
+# Temporary files
+*.tmp
+temp_*.v
+
+# Keep these files (documentation and source)
+!*.v
+!*.md
+!README*
+!LICENSE*

@@ -1,0 +1,185 @@
+error: expected field name or tuple index
+  --> $DIR/errors.rs:47:21
+   |
+LL |     fn empty_view(&{} self) {}
+   |                     ^
+
+error: expected one of `.`, `;`, `?`, `else`, or an operator, found `s`
+  --> $DIR/errors.rs:95:28
+   |
+LL |     let r: &i32 = &{field} s;
+   |                            ^ expected one of `.`, `;`, `?`, `else`, or an operator
+
+error: expected parameter name, found `{`
+  --> $DIR/errors.rs:128:20
+   |
+LL |     fn owned_value({mut field} self) {}
+   |                    ^ expected parameter name
+
+error: expected type, found `{`
+  --> $DIR/errors.rs:131:32
+   |
+LL |     fn view_on_raw_ptr(x: *mut {mut field} S7) {}
+   |                                ^ expected type
+
+error: const trait bounds are not allowed in trait object types
+  --> $DIR/errors.rs:231:36
+   |
+LL | fn view_with_const(x: &{mut field} const S12) {}
+   |                                    ^^^^^^^^^
+
+error[E0404]: expected trait, found struct `S12`
+  --> $DIR/errors.rs:231:42
+   |
+LL | fn view_with_const(x: &{mut field} const S12) {}
+   |                                          ^^^ not a trait
+
+error[E0658]: const trait impls are experimental
+  --> $DIR/errors.rs:231:36
+   |
+LL | fn view_with_const(x: &{mut field} const S12) {}
+   |                                    ^^^^^
+   |
+   = note: see issue #143874 <https://github.com/rust-lang/rust/issues/143874> for more information
+   = help: add `#![feature(const_trait_impl)]` to the crate attributes to enable
+   = note: this compiler was built on YYYY-MM-DD; consider upgrading it if it is out of date
+
+error[E0782]: expected a type, found a trait
+  --> $DIR/errors.rs:231:36
+   |
+LL | fn view_with_const(x: &{mut field} const S12) {}
+   |                                    ^^^^^^^^^
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:24:25
+   |
+LL | fn view_on_primitive(x: &{mut field} i32) {}
+   |                         ^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:26:21
+   |
+LL | fn view_on_tuple(x: &{mut 0} (i32, String)) {}
+   |                     ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:32:20
+   |
+LL | fn view_on_enum(x: &{mut field} MyEnum) {}
+   |                    ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:34:28
+   |
+LL | fn view_on_trait_object(x: &{mut field} dyn std::fmt::Debug) {}
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:36:21
+   |
+LL | fn view_on_slice(x: &{mut field} [i32]) {}
+   |                     ^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: overlapping paths in view specification: `field_a` and `field_a`
+  --> $DIR/errors.rs:60:25
+   |
+LL |     fn duplicate_fields(&{mut field_a, field_a} self) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `field_a` and `field_a`
+  --> $DIR/errors.rs:62:28
+   |
+LL |     fn duplicate_mixed_mut(&{mut field_a, field_a} self) {}
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: cannot access field `forbidden` through view-typed parameter `self`
+  --> $DIR/errors.rs:145:9
+   |
+LL |         self.forbidden = String::from("error");
+   |         ^^^^^^^^^^^^^^
+   |
+note: view type only allows access to: `allowed`
+  --> $DIR/errors.rs:144:27
+   |
+LL |     fn access_wrong_field(&{mut allowed} mut self) {
+   |                           ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: cannot access field `forbidden` through view-typed parameter `self`
+  --> $DIR/errors.rs:149:9
+   |
+LL |         self.forbidden.clone()
+   |         ^^^^^^^^^^^^^^
+   |
+note: view type only allows access to: `allowed`
+  --> $DIR/errors.rs:148:25
+   |
+LL |     fn read_wrong_field(&{allowed} self) -> String {
+   |                         ^^^^^^^^^^^^^^^
+
+error: view types are not allowed on public functions
+  --> $DIR/errors.rs:187:31
+   |
+LL |     pub fn public_not_allowed(&{mut field_a} mut self) {}
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are limited to `pub(crate)` or private functions
+   = note: this restriction avoids semver coupling and encapsulation issues
+   = help: change `pub fn` to `pub(crate) fn`, or remove the view type annotation
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:221:26
+   |
+LL | fn tuple_field_access(x: &{mut 0} (i32, String)) {}
+   |                          ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: view types are not supported on free functions
+  --> $DIR/errors.rs:231:23
+   |
+LL | fn view_with_const(x: &{mut field} const S12) {}
+   |                       ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: aborting due to 20 previous errors
+
+Some errors have detailed explanations: E0404, E0658, E0782.
+For more information about an error, try `rustc --explain E0404`.

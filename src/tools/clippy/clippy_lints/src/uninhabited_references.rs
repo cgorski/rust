@@ -69,7 +69,7 @@ impl LateLintPass<'_> for UninhabitedReferences {
             return;
         }
         if let FnRetTy::Return(hir_ty) = fndecl.output
-            && let TyKind::Ref(_, mut_ty) = hir_ty.kind
+            && let TyKind::Ref(_, mut_ty, _) = hir_ty.kind
             && lower_ty(cx.tcx, mut_ty.ty).is_privately_uninhabited(cx.tcx, cx.typing_env())
         {
             span_lint(

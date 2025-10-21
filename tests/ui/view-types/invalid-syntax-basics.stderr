@@ -1,0 +1,26 @@
+error: expected identifier, found keyword `self`
+  --> $DIR/invalid-syntax-basics.rs:21:27
+   |
+LL |     fn keyword_self(&{mut self} self) {}
+   |                           ^^^^ expected identifier, found keyword
+
+error: expected identifier, found keyword `super`
+  --> $DIR/invalid-syntax-basics.rs:23:28
+   |
+LL |     fn keyword_super(&{mut super} self) {}
+   |                            ^^^^^ expected identifier, found keyword
+
+error: expected field name or tuple index
+  --> $DIR/invalid-syntax-basics.rs:35:21
+   |
+LL |     fn empty_view(&{} self) {}
+   |                     ^
+
+error: expected parameter name, found `{`
+  --> $DIR/invalid-syntax-basics.rs:58:20
+   |
+LL |     fn owned_value({mut field} self) {}
+   |                    ^ expected parameter name
+
+error: aborting due to 4 previous errors
+

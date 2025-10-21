@@ -787,14 +787,14 @@ impl TyCoercionStability {
     // Here `y1` and `y2` would resolve to different types, so the type `&Box<_>` is not stable when
     // switching to auto-dereferencing.
     fn for_hir_ty<'tcx>(ty: &'tcx hir::Ty<'tcx>) -> Self {
-        let TyKind::Ref(_, ty) = &ty.kind else {
+        let TyKind::Ref(_, ty, _) = &ty.kind else {
             return Self::None;
         };
         let mut ty = ty;
 
         loop {
             break match ty.ty.kind {
-                TyKind::Ref(_, ref ref_ty) => {
+                TyKind::Ref(_, ref ref_ty, _) => {
                     ty = ref_ty;
                     continue;
                 },

@@ -448,6 +448,7 @@ declare_features! (
     (unstable, const_destruct, "1.85.0", Some(133214)),
     /// Allows `for _ in _` loops in const contexts.
     (unstable, const_for, "1.56.0", Some(87575)),
+
     /// Be more precise when looking for live drops in a const context.
     (unstable, const_precise_live_drops, "1.46.0", Some(73255)),
     /// Allows `impl const Trait for T` syntax.
@@ -620,6 +621,8 @@ declare_features! (
     /// Allows the use of raw-dylibs on ELF platforms
     (incomplete, raw_dylib_elf, "1.87.0", Some(135694)),
     (unstable, reborrow, "1.91.0", Some(145612)),
+    /// Allows view types on references to specify which fields are accessible.
+    (incomplete, view_types, "CURRENT_RUSTC_VERSION", None),
     /// Makes `&` and `&mut` patterns eat only one layer of references in Rust 2024.
     (incomplete, ref_pat_eat_one_layer_2024, "1.79.0", Some(123076)),
     /// Makes `&` and `&mut` patterns eat only one layer of references in Rust 2024—structural variant

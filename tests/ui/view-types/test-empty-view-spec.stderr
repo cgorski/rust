@@ -1,0 +1,29 @@
+error: view specification cannot be empty
+  --> $DIR/test-empty-view-spec.rs:24:20
+   |
+LL |     fn empty_view(&{} self) {
+   |                    ^^
+   |
+   = help: add field names like `{mut field}` or use a regular reference `&self`
+   = note: view types specify which fields a method accesses
+
+error: view specification cannot be empty
+  --> $DIR/test-empty-view-spec.rs:29:24
+   |
+LL |     fn empty_view_mut(&{} mut self) {
+   |                        ^^
+   |
+   = help: add field names like `{mut field}` or use a regular reference `&self`
+   = note: view types specify which fields a method accesses
+
+error: view specification cannot be empty
+  --> $DIR/test-empty-view-spec.rs:34:27
+   |
+LL |     fn lone_mut_keyword(&{mut} mut self) {
+   |                           ^^^^
+   |
+   = help: add field names after `mut` like `{mut field}`
+   = note: view types specify which fields a method accesses
+
+error: aborting due to 3 previous errors
+

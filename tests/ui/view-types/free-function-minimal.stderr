@@ -1,0 +1,13 @@
+error: view types are not supported on free functions
+  --> $DIR/free-function-minimal.rs:13:16
+   |
+LL | fn update_a(d: &{mut a} mut Data) {
+   |                ^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods (methods in impl blocks)
+   = note: free function support requires additional infrastructure
+   = help: consider moving this function into an impl block as a method
+   = help: or use regular references without view type annotations
+
+error: aborting due to 1 previous error
+

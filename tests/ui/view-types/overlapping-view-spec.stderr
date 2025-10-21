@@ -1,0 +1,119 @@
+error: overlapping paths in view specification: `inner` and `inner.value`
+  --> $DIR/overlapping-view-spec.rs:30:25
+   |
+LL |     fn parent_and_child(&{mut inner, mut inner.value} self) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `inner.value` and `inner`
+  --> $DIR/overlapping-view-spec.rs:33:25
+   |
+LL |     fn child_and_parent(&{mut inner.value, mut inner} self) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `inner` and `inner`
+  --> $DIR/overlapping-view-spec.rs:36:25
+   |
+LL |     fn duplicate_simple(&{mut inner, inner} self) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `level2` and `level2.level3`
+  --> $DIR/overlapping-view-spec.rs:57:26
+   |
+LL |     fn level2_and_level3(&{mut level2, mut level2.level3} self) {}
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `level2.level3` and `level2.level3.data`
+  --> $DIR/overlapping-view-spec.rs:60:24
+   |
+LL |     fn level3_and_data(&{mut level2.level3, mut level2.level3.data} self) {}
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `level2` and `level2.level3.data`
+  --> $DIR/overlapping-view-spec.rs:63:24
+   |
+LL |     fn level2_and_data(&{mut level2, mut level2.level3.data} self) {}
+   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `level2.level3` and `level2.level3`
+  --> $DIR/overlapping-view-spec.rs:66:25
+   |
+LL |     fn duplicate_nested(&{mut level2.level3, level2.level3} self) {}
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `field_a` and `field_a.value`
+  --> $DIR/overlapping-view-spec.rs:81:22
+   |
+LL |     fn mixed_overlap(&{mut field_a, mut field_b, mut field_a.value} self) {}
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `a` and `a.level2`
+  --> $DIR/overlapping-view-spec.rs:98:18
+   |
+LL |     fn three_way(&{mut a, mut a.level2, mut a.level2.level3} self) {}
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `a` and `a.level2.level3`
+  --> $DIR/overlapping-view-spec.rs:98:18
+   |
+LL |     fn three_way(&{mut a, mut a.level2, mut a.level2.level3} self) {}
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `a.level2` and `a.level2.level3`
+  --> $DIR/overlapping-view-spec.rs:98:18
+   |
+LL |     fn three_way(&{mut a, mut a.level2, mut a.level2.level3} self) {}
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `field` and `field.value`
+  --> $DIR/overlapping-view-spec.rs:113:31
+   |
+LL |     fn immut_parent_mut_child(&{field, mut field.value} self) {}
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: overlapping paths in view specification: `field` and `field.value`
+  --> $DIR/overlapping-view-spec.rs:116:31
+   |
+LL |     fn mut_parent_immut_child(&{mut field, field.value} self) {}
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: a parent path and its child path cannot both be specified in the same view
+   = help: remove one of the overlapping paths
+
+error: aborting due to 13 previous errors
+

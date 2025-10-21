@@ -1,0 +1,77 @@
+error[E0499]: cannot borrow `e.transform` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:85:5
+   |
+LL |     let transform_ref = &mut e.transform;
+   |                         ---------------- first mutable borrow occurs here
+LL |     e.update_position(1.0, 2.0, 3.0);
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     transform_ref.position.x = 10.0;
+   |     ------------------------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform.position` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:85:5
+   |
+LL |     let transform_ref = &mut e.transform;
+   |                         ---------------- first mutable borrow occurs here
+LL |     e.update_position(1.0, 2.0, 3.0);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ second mutable borrow occurs here
+LL |
+LL |     transform_ref.position.x = 10.0;
+   |     ------------------------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:101:5
+   |
+LL |     let position_ref = &mut e.transform.position;
+   |                        ------------------------- first mutable borrow occurs here
+LL |     e.update_transform();
+   |     ^ second mutable borrow occurs here
+LL |     position_ref.x = 20.0;
+   |     --------------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:116:5
+   |
+LL |     let x_ref = &mut e.transform.position.x;
+   |                 --------------------------- first mutable borrow occurs here
+LL |     e.update_transform();
+   |     ^ second mutable borrow occurs here
+LL |     *x_ref = 30.0;
+   |     ------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:131:5
+   |
+LL |     let position_ref = &mut e.transform.position;
+   |                        ------------------------- first mutable borrow occurs here
+LL |     e.update_x(5.0);
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     position_ref.y = 40.0;
+   |     --------------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform.position.x` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:131:5
+   |
+LL |     let position_ref = &mut e.transform.position;
+   |                        ------------------------- first mutable borrow occurs here
+LL |     e.update_x(5.0);
+   |     ^^^^^^^^^^^^^^^ second mutable borrow occurs here
+LL |
+LL |     position_ref.y = 40.0;
+   |     --------------------- first borrow later used here
+
+error[E0499]: cannot borrow `e.transform` as mutable more than once at a time
+  --> $DIR/test-parent-child-nested-conflict.rs:147:5
+   |
+LL |     let position_ref = &mut e.transform.position;
+   |                        ------------------------- first mutable borrow occurs here
+LL |     e.update_rotation();
+   |     ^ second mutable borrow occurs here
+LL |     position_ref.x = 50.0;
+   |     --------------------- first borrow later used here
+
+error: aborting due to 7 previous errors
+
+For more information about this error, try `rustc --explain E0499`.

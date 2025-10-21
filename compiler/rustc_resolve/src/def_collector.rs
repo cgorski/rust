@@ -21,6 +21,7 @@ pub(crate) fn collect_definitions(
     expansion: LocalExpnId,
 ) {
     let invocation_parent = resolver.invocation_parents[&expansion];
+
     let mut visitor = DefCollector { resolver, expansion, invocation_parent };
     fragment.visit_with(&mut visitor);
 }
@@ -41,11 +42,13 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
         span: Span,
     ) -> LocalDefId {
         let parent_def = self.invocation_parent.parent_def;
+
         debug!(
             "create_def(node_id={:?}, def_kind={:?}, parent_def={:?})",
             node_id, def_kind, parent_def
         );
-        self.resolver
+        let def_id = self
+            .resolver
             .create_def(
                 parent_def,
                 node_id,
@@ -54,7 +57,9 @@ impl<'a, 'ra, 'tcx> DefCollector<'a, 'ra, 'tcx> {
                 self.expansion.to_expn_id(),
                 span.with_parent(None),
             )
-            .def_id()
+            .def_id();
+
+        def_id
     }
 
     fn with_parent<F: FnOnce(&mut Self)>(&mut self, parent_def: LocalDefId, f: F) {
@@ -346,6 +351,7 @@ impl<'a, 'ra, 'tcx> visit::Visitor<'a> for DefCollector<'a, 'ra, 'tcx> {
         };
 
         let def = self.create_def(i.id, Some(ident.name), def_kind, i.span);
+
         self.with_parent(def, |this| visit::walk_assoc_item(this, i, ctxt));
     }
 

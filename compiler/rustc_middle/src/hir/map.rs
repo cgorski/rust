@@ -783,9 +783,24 @@ impl<'tcx> TyCtxt<'tcx> {
     }
 
     pub fn hir_expect_item(self, id: LocalDefId) -> &'tcx Item<'tcx> {
-        match self.expect_hir_owner_node(id) {
+        let owner_node = self.expect_hir_owner_node(id);
+        match owner_node {
             OwnerNode::Item(item) => item,
-            _ => bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id))),
+            OwnerNode::ImplItem(_) => {
+                bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id)))
+            }
+            OwnerNode::ForeignItem(_) => {
+                bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id)))
+            }
+            OwnerNode::TraitItem(_) => {
+                bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id)))
+            }
+            OwnerNode::Crate(_) => {
+                bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id)))
+            }
+            OwnerNode::Synthetic => {
+                bug!("expected item, found {}", self.hir_id_to_string(HirId::make_owner(id)))
+            }
         }
     }
 

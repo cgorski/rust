@@ -23,6 +23,7 @@ use std::{cmp, fmt};
 
 pub use GenericArgs::*;
 pub use UnsafeSource::*;
+use rustc_ast_ir::visit::VisitorResult;
 pub use rustc_ast_ir::{FloatTy, IntTy, Movability, Mutability, Pinnedness, UintTy};
 use rustc_data_structures::packed::Pu128;
 use rustc_data_structures::stable_hasher::{HashStable, StableHasher};
@@ -649,7 +650,7 @@ impl Pat {
             PatKind::MacCall(mac) => TyKind::MacCall(mac.clone()),
             // `&mut? P` can be reinterpreted as `&mut? T` where `T` is `P` reparsed as a type.
             PatKind::Ref(pat, mutbl) => {
-                pat.to_ty().map(|ty| TyKind::Ref(None, MutTy { ty, mutbl: *mutbl }))?
+                pat.to_ty().map(|ty| TyKind::Ref(None, MutTy { ty, mutbl: *mutbl }, None))?
             }
             // A slice/array pattern `[P]` can be reparsed as `[T]`, an unsized array,
             // when `P` can be reparsed as a type `T`.
@@ -1476,7 +1477,7 @@ impl Expr {
             ExprKind::Paren(expr) => expr.to_ty().map(TyKind::Paren)?,
 
             ExprKind::AddrOf(BorrowKind::Ref, mutbl, expr) => {
-                expr.to_ty().map(|ty| TyKind::Ref(None, MutTy { ty, mutbl: *mutbl }))?
+                expr.to_ty().map(|ty| TyKind::Ref(None, MutTy { ty, mutbl: *mutbl }, None))?
             }
 
             ExprKind::Repeat(expr, expr_len) => {
@@ -2274,6 +2275,38 @@ pub struct MutTy {
     pub mutbl: Mutability,
 }
 
+/// View specification for partial borrows.
+/// Represents the fields accessible through a reference, e.g., `&{mut a, b}`.
+#[derive(Clone, Encodable, Decodable, Debug)]
+pub struct ViewSpec {
+    pub fields: ThinVec<ViewField>,
+}
+
+/// A field in a view specification with its mutability.
+#[derive(Clone, Encodable, Decodable, Debug)]
+pub struct ViewField {
+    /// Path to the field (e.g., ["outer", "inner", "value"] for outer.inner.value)
+    /// Single-element for simple fields, multiple for nested access
+    pub path: ThinVec<Symbol>,
+    pub mutability: Mutability,
+}
+
+// Manual implementation of visitor traits for ViewSpec since it contains
+// only primitive data (Symbols and Mutability) that don't need recursive visiting.
+impl<V: crate::mut_visit::MutVisitor> crate::mut_visit::MutVisitable<V> for ViewSpec {
+    type Extra = ();
+    fn visit_mut(&mut self, _visitor: &mut V, _extra: Self::Extra) -> V::Result {
+        V::Result::output()
+    }
+}
+
+impl<'a, V: crate::visit::Visitor<'a>> crate::visit::Visitable<'a, V> for ViewSpec {
+    type Extra = ();
+    fn visit(&'a self, _visitor: &mut V, _extra: Self::Extra) -> V::Result {
+        V::Result::output()
+    }
+}
+
 /// Represents a function's signature in a trait declaration,
 /// trait implementation, or free function.
 #[derive(Clone, Encodable, Decodable, Debug)]
@@ -2413,7 +2446,8 @@ impl From<Box<Ty>> for Ty {
 impl Ty {
     pub fn peel_refs(&self) -> &Self {
         let mut final_ty = self;
-        while let TyKind::Ref(_, MutTy { ty, .. }) | TyKind::Ptr(MutTy { ty, .. }) = &final_ty.kind
+        while let TyKind::Ref(_, MutTy { ty, .. }, _) | TyKind::Ptr(MutTy { ty, .. }) =
+            &final_ty.kind
         {
             final_ty = ty;
         }
@@ -2458,7 +2492,8 @@ pub enum TyKind {
     /// A raw pointer (`*const T` or `*mut T`).
     Ptr(MutTy),
     /// A reference (`&'a T` or `&'a mut T`).
-    Ref(#[visitable(extra = LifetimeCtxt::Ref)] Option<Lifetime>, MutTy),
+    /// With view types: `&'a {mut field_a, field_b} T`.
+    Ref(#[visitable(extra = LifetimeCtxt::Ref)] Option<Lifetime>, MutTy, Option<ViewSpec>),
     /// A pinned reference (`&'a pin const T` or `&'a pin mut T`).
     ///
     /// Desugars into `Pin<&'a T>` or `Pin<&'a mut T>`.
@@ -2898,7 +2933,7 @@ impl Param {
             if ident.name == kw::SelfLower {
                 return match self.ty.kind {
                     TyKind::ImplicitSelf => Some(respan(self.pat.span, SelfKind::Value(mutbl))),
-                    TyKind::Ref(lt, MutTy { ref ty, mutbl }) if ty.kind.is_implicit_self() => {
+                    TyKind::Ref(lt, MutTy { ref ty, mutbl }, _) if ty.kind.is_implicit_self() => {
                         Some(respan(self.pat.span, SelfKind::Region(lt, mutbl)))
                     }
                     TyKind::PinnedRef(lt, MutTy { ref ty, mutbl })
@@ -2941,7 +2976,7 @@ impl Param {
                 Mutability::Not,
                 Box::new(Ty {
                     id: DUMMY_NODE_ID,
-                    kind: TyKind::Ref(lt, MutTy { ty: infer_ty, mutbl }),
+                    kind: TyKind::Ref(lt, MutTy { ty: infer_ty, mutbl }, None),
                     span,
                     tokens: None,
                 }),

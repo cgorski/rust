@@ -41,7 +41,9 @@ pub(super) fn each_borrow_involving_path<'tcx, F, I, S>(
             body,
             borrowed.borrowed_place,
             borrowed.kind,
+            borrowed.view_spec,
             place.as_ref(),
+            None, // Access place doesn't have a view spec
             access,
             places_conflict::PlaceConflictBias::Overlap,
         ) {

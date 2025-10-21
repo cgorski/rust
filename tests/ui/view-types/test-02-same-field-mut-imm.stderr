@@ -1,0 +1,15 @@
+error[E0502]: cannot borrow `s.a` as immutable because it is also borrowed as mutable
+  --> $DIR/test-02-same-field-mut-imm.rs:40:5
+   |
+LL |     let a_ref = &mut s.a;
+   |                 -------- mutable borrow occurs here
+...
+LL |     s.read_a();
+   |     ^ immutable borrow occurs here
+...
+LL |     *a_ref = 10;
+   |     ----------- mutable borrow later used here
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0502`.

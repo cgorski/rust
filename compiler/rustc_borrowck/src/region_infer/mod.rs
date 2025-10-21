@@ -19,7 +19,7 @@ use rustc_middle::traits::{ObligationCause, ObligationCauseCode};
 use rustc_middle::ty::{self, RegionVid, Ty, TyCtxt, TypeFoldable, UniverseIndex, fold_regions};
 use rustc_mir_dataflow::points::DenseLocationMap;
 use rustc_span::hygiene::DesugaringKind;
-use rustc_span::{DUMMY_SP, Span};
+use rustc_span::{DUMMY_SP, Span, Symbol};
 use tracing::{Level, debug, enabled, instrument, trace};
 
 use crate::constraints::graph::NormalConstraintGraph;
@@ -136,6 +136,15 @@ pub(crate) struct RegionDefinition<'tcx> {
     /// If this is 'static or an early-bound region, then this is
     /// `Some(X)` where `X` is the name of the region.
     pub(crate) external_name: Option<ty::Region<'tcx>>,
+
+    /// OPTION 3: For view-typed borrows, stores which fields this region covers.
+    /// This enables field-level lifetime tracking for returned references.
+    /// When a view-typed method returns a reference, the return region carries
+    /// this metadata, allowing the borrow checker to know which specific fields
+    /// are borrowed (not just the whole struct).
+    /// See formalization/Lifetimes_Returns.v for the formal proof.
+    #[allow(dead_code)] // TODO: Will be used when Option 3 implementation is complete
+    pub(crate) view_spec_fields: Option<Vec<Symbol>>,
 }
 
 /// N.B., the variants in `Cause` are intentionally ordered. Lower

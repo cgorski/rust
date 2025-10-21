@@ -931,6 +931,7 @@ pub struct CtxtInterners<'tcx> {
     const_lists: InternedSet<'tcx, List<ty::Const<'tcx>>>,
     args: InternedSet<'tcx, GenericArgs<'tcx>>,
     type_lists: InternedSet<'tcx, List<Ty<'tcx>>>,
+
     canonical_var_kinds: InternedSet<'tcx, List<CanonicalVarKind<'tcx>>>,
     region: InternedSet<'tcx, RegionKind<'tcx>>,
     poly_existential_predicates: InternedSet<'tcx, List<PolyExistentialPredicate<'tcx>>>,

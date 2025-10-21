@@ -73,6 +73,10 @@ hir-stats - Impl                      88 (NN.N%)             1
 hir-stats - Trait                     88 (NN.N%)             1
 hir-stats - Fn                       176 (NN.N%)             2
 hir-stats - Use                      352 (NN.N%)             4
+hir-stats Ty                       840 (NN.N%)            15            56
+hir-stats - Ptr                       56 (NN.N%)             1
+hir-stats - Ref                       56 (NN.N%)             1
+hir-stats - Path                     728 (NN.N%)            13
 hir-stats Expr                     768 (NN.N%)            12            64
 hir-stats - InlineAsm                 64 (NN.N%)             1
 hir-stats - Match                     64 (NN.N%)             1
@@ -80,10 +84,6 @@ hir-stats - Path                      64 (NN.N%)             1
 hir-stats - Struct                    64 (NN.N%)             1
 hir-stats - Lit                      128 (NN.N%)             2
 hir-stats - Block                    384 (NN.N%)             6
-hir-stats Ty                       720 (NN.N%)            15            48
-hir-stats - Ptr                       48 (NN.N%)             1
-hir-stats - Ref                       48 (NN.N%)             1
-hir-stats - Path                     624 (NN.N%)            13
 hir-stats Generics                 560 (NN.N%)            10            56
 hir-stats Pat                      400 (NN.N%)             5            80
 hir-stats - Struct                    80 (NN.N%)             1
@@ -119,5 +119,5 @@ hir-stats TraitItemId                8 (NN.N%)             2             4
 hir-stats ImplItemId                 8 (NN.N%)             2             4
 hir-stats ForeignItemId              4 (NN.N%)             1             4
 hir-stats ----------------------------------------------------------------
-hir-stats Total                  8_624                   173
+hir-stats Total                  8_744                   173
 hir-stats ================================================================

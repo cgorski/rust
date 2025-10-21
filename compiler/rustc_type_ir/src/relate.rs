@@ -473,6 +473,10 @@ pub fn structurally_relate_tys<I: Interner, R: TypeRelation<I>>(
                 return Err(TypeError::Mutability);
             }
 
+            // NOTE: View specs are NOT part of type identity in the side-table approach.
+            // They are stored separately and queried during borrow checking.
+            // Type unification only checks region, pointee type, and mutability.
+
             let (variance, info) = match a_mutbl {
                 Mutability::Not => (ty::Covariant, VarianceDiagInfo::None),
                 Mutability::Mut => {

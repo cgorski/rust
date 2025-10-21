@@ -611,7 +611,7 @@ impl Subdiagnostic for AddLifetimeParamsSuggestion<'_> {
                                 }
                             }
                         }
-                        hir::TyKind::Ref(lifetime, ..) if lifetime.is_anonymous() => {
+                        hir::TyKind::Ref(lifetime, .., _) if lifetime.is_anonymous() => {
                             self.suggestions.push(lifetime.suggestion(&self.suggestion_param_name));
                         }
                         _ => {}
@@ -1846,7 +1846,7 @@ pub fn impl_trait_overcapture_suggestion<'tcx>(
             ("(", ")")
         }
         Node::Ty(ty) => match ty.kind {
-            rustc_hir::TyKind::Ptr(_) | rustc_hir::TyKind::Ref(..) => ("(", ")"),
+            rustc_hir::TyKind::Ptr(_) | rustc_hir::TyKind::Ref(..) => ("(", ", _)"),
             // FIXME: RPITs are not allowed to be nested in `impl Fn() -> ...`,
             // but we eventually could support that, and that would necessitate
             // making this more sophisticated.

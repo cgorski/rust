@@ -666,7 +666,7 @@ impl Types {
                     owned_cow::check(cx, qpath, def_id);
                 }
             },
-            TyKind::Ref(lt, ref mut_ty) => {
+            TyKind::Ref(lt, ref mut_ty, _) => {
                 context.is_nested_call = true;
                 if !borrowed_box::check(cx, hir_ty, lt, mut_ty) {
                     self.check_ty(cx, mut_ty.ty, context);

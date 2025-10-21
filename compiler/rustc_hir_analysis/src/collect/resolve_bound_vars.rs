@@ -793,7 +793,7 @@ impl<'a, 'tcx> Visitor<'tcx> for BoundVarContext<'a, 'tcx> {
                     LifetimeKind::Error => {}
                 }
             }
-            hir::TyKind::Ref(lifetime_ref, ref mt) => {
+            hir::TyKind::Ref(lifetime_ref, ref mt, _) => {
                 self.visit_lifetime(lifetime_ref);
                 let scope = Scope::ObjectLifetimeDefault {
                     lifetime: self.rbv.defs.get(&lifetime_ref.hir_id.local_id).cloned(),

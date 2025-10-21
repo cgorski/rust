@@ -1,0 +1,40 @@
+error: tuple field index cannot have a suffix: `u32`
+  --> $DIR/test-tuple-field-errors.rs:22:24
+   |
+LL | fn suffix_u32(x: &{mut 0u32} Point) {}
+   |                        ^^^^
+   |
+   = help: use just the number without type suffix, like `0` instead of `0u32`
+
+error: tuple field index cannot have a suffix: `i32`
+  --> $DIR/test-tuple-field-errors.rs:24:24
+   |
+LL | fn suffix_i32(x: &{mut 1i32} Point) {}
+   |                        ^^^^
+   |
+   = help: use just the number without type suffix, like `0` instead of `0u32`
+
+error: tuple field index cannot have a suffix: `usize`
+  --> $DIR/test-tuple-field-errors.rs:26:26
+   |
+LL | fn suffix_usize(x: &{mut 0usize} Point) {}
+   |                          ^^^^^^
+   |
+   = help: use just the number without type suffix, like `0` instead of `0u32`
+
+error: expected field name or tuple index
+  --> $DIR/test-tuple-field-errors.rs:36:28
+   |
+LL | fn negative_index(x: &{mut -1} Data) {}
+   |                            ^
+
+error: tuple field index cannot have a suffix: `u32`
+  --> $DIR/test-tuple-field-errors.rs:44:33
+   |
+LL | fn mixed_suffix(x: &{mut 0, mut 1u32} Triple) {}
+   |                                 ^^^^
+   |
+   = help: use just the number without type suffix, like `0` instead of `0u32`
+
+error: aborting due to 5 previous errors
+

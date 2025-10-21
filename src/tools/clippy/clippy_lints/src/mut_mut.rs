@@ -53,9 +53,9 @@ impl<'tcx> LateLintPass<'tcx> for MutMut {
     }
 
     fn check_ty(&mut self, cx: &LateContext<'tcx>, ty: &'tcx hir::Ty<'_, AmbigArg>) {
-        if let TyKind::Ref(_, mty) = ty.kind
+        if let TyKind::Ref(_, mty, _) = ty.kind
             && mty.mutbl == Mutability::Mut
-            && let TyKind::Ref(_, mty2) = mty.ty.kind
+            && let TyKind::Ref(_, mty2, _) = mty.ty.kind
             && mty2.mutbl == Mutability::Mut
             && !ty.span.in_external_macro(cx.sess().source_map())
         {
@@ -74,7 +74,7 @@ impl<'tcx> LateLintPass<'tcx> for MutMut {
                 // this should allow us to remember all the nested types, so that the `contains`
                 // above fails faster
                 self.seen_tys.insert(t.hir_id);
-                if let TyKind::Ref(_, next) = t2.kind
+                if let TyKind::Ref(_, next, _) = t2.kind
                     && next.mutbl == Mutability::Mut
                 {
                     (t, t2) = (t2, next.ty);

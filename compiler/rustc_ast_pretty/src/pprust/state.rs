@@ -1264,8 +1264,27 @@ impl<'a> State<'a> {
                 self.word("*");
                 self.print_mt(mt, true);
             }
-            ast::TyKind::Ref(lifetime, mt) => {
+            ast::TyKind::Ref(lifetime, mt, view_spec) => {
                 self.word("&");
+                if let Some(view_spec) = view_spec {
+                    self.word("{");
+                    for (i, field) in view_spec.fields.iter().enumerate() {
+                        if i > 0 {
+                            self.word(", ");
+                        }
+                        if field.mutability == ast::Mutability::Mut {
+                            self.word("mut ");
+                        }
+                        // Print path components separated by dots
+                        for (j, component) in field.path.iter().enumerate() {
+                            if j > 0 {
+                                self.word(".");
+                            }
+                            self.word(component.to_string());
+                        }
+                    }
+                    self.word("} ");
+                }
                 self.print_opt_lifetime(lifetime);
                 self.print_mt(mt, false);
             }

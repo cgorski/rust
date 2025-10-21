@@ -802,7 +802,7 @@ impl<'a, 'tcx> ResultsVisitor<'tcx, Borrowck<'a, 'tcx>> for MirBorrowckCtxt<'a, 
 
         match &stmt.kind {
             StatementKind::Assign(box (lhs, rhs)) => {
-                self.consume_rvalue(location, (rhs, span), state);
+                self.consume_rvalue(location, (rhs, span), Some(*lhs), state);
 
                 self.mutate_place(location, (*lhs, span), Shallow(None), state);
             }
@@ -913,6 +913,31 @@ impl<'a, 'tcx> ResultsVisitor<'tcx, Borrowck<'a, 'tcx>> for MirBorrowckCtxt<'a, 
                 fn_span: _,
             } => {
                 self.consume_operand(loc, (func, span), state);
+
+                // Check if callee has view types - if so, use view-aware borrowing
+                if let Some(callee_def_id) = self.get_callee_def_id(func) {
+                    debug!("Checking callee {:?} for view types", callee_def_id);
+                    if self.has_view_types(callee_def_id) {
+                        debug!(
+                            "Callee {:?} has view types! Using view-aware borrowing",
+                            callee_def_id
+                        );
+                        // View-typed function: consume only the specified fields
+                        for (param_idx, arg) in args.iter().enumerate() {
+                            self.consume_operand_with_view_types(
+                                loc,
+                                (&arg.node, arg.span),
+                                callee_def_id,
+                                param_idx,
+                                state,
+                            );
+                        }
+                        self.mutate_place(loc, (*destination, span), Deep, state);
+                        return;
+                    }
+                }
+
+                // Normal path: consume entire operand
                 for arg in args {
                     self.consume_operand(loc, (&arg.node, arg.span), state);
                 }
@@ -1455,10 +1480,98 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
         &mut self,
         location: Location,
         (rvalue, span): (&Rvalue<'tcx>, Span),
+        lhs: Option<Place<'tcx>>,
         state: &BorrowckDomain,
     ) {
         match rvalue {
             &Rvalue::Ref(_ /*rgn*/, bk, place) => {
+                // Check if this borrow will be used for a view-typed call
+                // If so, we only need to borrow the specific fields
+                if let Some(lhs_place) = lhs {
+                    if let Some((callee_def_id, param_idx)) =
+                        self.find_view_typed_call_use(lhs_place, location)
+                    {
+                        // Get the view spec for this parameter
+                        if let Some(view_spec) =
+                            self.get_view_spec_from_param(callee_def_id, param_idx)
+                        {
+                            // Access only the specified fields
+                            let place_ty = place.ty(&self.body.local_decls, self.infcx.tcx).ty;
+
+                            for field in view_spec.fields.iter() {
+                                if let Some(field_idx) =
+                                    self.get_field_index(place_ty, field.path[0])
+                                {
+                                    // Get field type
+                                    let field_ty = match place_ty.kind() {
+                                        ty::Adt(adt_def, substs) => {
+                                            adt_def.non_enum_variant().fields[field_idx]
+                                                .ty(self.infcx.tcx, substs)
+                                        }
+                                        _ => self.infcx.tcx.types.unit,
+                                    };
+
+                                    // Build field place
+                                    let mut field_projection = place.projection.to_vec();
+                                    field_projection.push(PlaceElem::Field(field_idx, field_ty));
+                                    let field_place = Place {
+                                        local: place.local,
+                                        projection: self
+                                            .infcx
+                                            .tcx
+                                            .mk_place_elems(&field_projection),
+                                    };
+
+                                    // Determine access kind
+                                    let access_kind = match bk {
+                                        BorrowKind::Fake(FakeBorrowKind::Shallow) => (
+                                            Shallow(Some(ArtificialField::FakeBorrow)),
+                                            Read(ReadKind::Borrow(bk)),
+                                        ),
+                                        BorrowKind::Shared
+                                        | BorrowKind::Fake(FakeBorrowKind::Deep) => {
+                                            (Deep, Read(ReadKind::Borrow(bk)))
+                                        }
+                                        BorrowKind::Mut { .. } => {
+                                            let wk = WriteKind::MutableBorrow(bk);
+                                            if bk.allows_two_phase_borrow() {
+                                                (Deep, Reservation(wk))
+                                            } else {
+                                                (Deep, Write(wk))
+                                            }
+                                        }
+                                    };
+
+                                    self.access_place(
+                                        location,
+                                        (field_place, span),
+                                        access_kind,
+                                        LocalMutationIsAllowed::No,
+                                        state,
+                                    );
+                                }
+                            }
+
+                            // Check if borrowed place was moved
+                            let action = if bk == BorrowKind::Fake(FakeBorrowKind::Shallow) {
+                                InitializationRequiringAction::MatchOn
+                            } else {
+                                InitializationRequiringAction::Borrow
+                            };
+
+                            self.check_if_path_or_subpath_is_moved(
+                                location,
+                                action,
+                                (place.as_ref(), span),
+                                state,
+                            );
+
+                            return;
+                        }
+                    }
+                }
+
+                // Normal path: borrow the whole place
                 let access_kind = match bk {
                     BorrowKind::Fake(FakeBorrowKind::Shallow) => {
                         (Shallow(Some(ArtificialField::FakeBorrow)), Read(ReadKind::Borrow(bk)))
@@ -1707,6 +1820,211 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
         }
     }
 
+    /// Get the DefId of the callee function if this is a direct function call
+    fn get_callee_def_id(&self, func: &Operand<'tcx>) -> Option<rustc_hir::def_id::DefId> {
+        debug!("get_callee_def_id: func={:?}", func);
+        match func {
+            Operand::Constant(box constant) => {
+                debug!("Constant operand, ty={:?}", constant.const_.ty());
+                if let ty::FnDef(def_id, _) = constant.const_.ty().kind() {
+                    debug!("Found FnDef with def_id={:?}", def_id);
+                    Some(*def_id)
+                } else {
+                    debug!("Not a FnDef, kind={:?}", constant.const_.ty().kind());
+                    None
+                }
+            }
+            _ => {
+                debug!("Not a constant operand");
+                None
+            }
+        }
+    }
+
+    /// Check if a function has view type annotations on any of its parameters
+    fn has_view_types(&self, def_id: rustc_hir::def_id::DefId) -> bool {
+        debug!("has_view_types: def_id={:?}", def_id);
+        // Only check local functions
+        let Some(local_def_id) = def_id.as_local() else {
+            debug!("Not a local def_id");
+            return false;
+        };
+
+        let hir_id = self.infcx.tcx.local_def_id_to_hir_id(local_def_id);
+        let node = self.infcx.tcx.hir_node(hir_id);
+        debug!("HIR node: {:?}", node);
+
+        let fn_sig = match node.fn_sig() {
+            Some(sig) => sig,
+            None => {
+                debug!("No fn_sig found");
+                return false;
+            }
+        };
+
+        // Check if any parameter has a view type
+        let has_views = fn_sig
+            .decl
+            .inputs
+            .iter()
+            .any(|param_ty| matches!(param_ty.kind, hir::TyKind::Ref(_, _, Some(_))));
+        debug!("has_view_types result: {}", has_views);
+        has_views
+    }
+
+    /// Extract view spec from a parameter type
+    fn get_view_spec_from_param(
+        &self,
+        def_id: rustc_hir::def_id::DefId,
+        param_idx: usize,
+    ) -> Option<&'tcx hir::ViewSpec<'tcx>> {
+        let Some(local_def_id) = def_id.as_local() else {
+            return None;
+        };
+
+        let hir_id = self.infcx.tcx.local_def_id_to_hir_id(local_def_id);
+        let node = self.infcx.tcx.hir_node(hir_id);
+
+        let fn_sig = node.fn_sig()?;
+        let param_ty = fn_sig.decl.inputs.get(param_idx)?;
+
+        if let hir::TyKind::Ref(_, _, Some(view_spec)) = &param_ty.kind {
+            Some(*view_spec)
+        } else {
+            None
+        }
+    }
+
+    /// Consume an operand with view type awareness.
+    /// Instead of borrowing the entire place, only borrow the fields specified in the view type.
+    fn consume_operand_with_view_types(
+        &mut self,
+        location: Location,
+        (operand, span): (&Operand<'tcx>, Span),
+        callee_def_id: rustc_hir::def_id::DefId,
+        param_idx: usize,
+        state: &BorrowckDomain,
+    ) {
+        // Get the view spec for this parameter
+        debug!("consume_operand_with_view_types: param_idx={}, operand={:?}", param_idx, operand);
+        if let Some(view_spec) = self.get_view_spec_from_param(callee_def_id, param_idx) {
+            debug!("Found view spec with {} fields", view_spec.fields.len());
+            // Get the place being borrowed
+            let place = match operand {
+                Operand::Copy(place) | Operand::Move(place) => *place,
+                Operand::Constant(_) => {
+                    // Constants don't participate in view type borrowing
+                    self.consume_operand(location, (operand, span), state);
+                    return;
+                }
+            };
+
+            // Access only the specified fields instead of the entire place
+            debug!("Accessing view-typed fields for place {:?}", place);
+            for field in view_spec.fields.iter() {
+                debug!(
+                    "Processing field: {:?} (mutability: {:?})",
+                    field.path[0], field.mutability
+                );
+                // Create a place projection for this field
+                let place_ty = place.ty(&self.body.local_decls, self.infcx.tcx).ty;
+                let field_idx = self.get_field_index(place_ty, field.path[0]);
+
+                if let Some(field_idx) = field_idx {
+                    // Get the actual field type from the ADT
+                    let field_ty = match place_ty.kind() {
+                        ty::Adt(adt_def, substs) => {
+                            adt_def.non_enum_variant().fields[field_idx].ty(self.infcx.tcx, substs)
+                        }
+                        _ => self.infcx.tcx.types.unit, // Fallback, shouldn't happen
+                    };
+
+                    // Build the field place: place.field
+                    let mut field_projection = place.projection.to_vec();
+                    field_projection.push(PlaceElem::Field(field_idx, field_ty));
+                    let field_place = Place {
+                        local: place.local,
+                        projection: self.infcx.tcx.mk_place_elems(&field_projection),
+                    };
+
+                    // Determine access kind based on mutability
+                    let access_kind = if matches!(field.mutability, hir::Mutability::Mut) {
+                        (Deep, Write(WriteKind::Mutate))
+                    } else {
+                        (Deep, Read(ReadKind::Borrow(BorrowKind::Shared)))
+                    };
+
+                    // Access the field
+                    self.access_place(
+                        location,
+                        (field_place, span),
+                        access_kind,
+                        LocalMutationIsAllowed::No,
+                        state,
+                    );
+                    debug!("Successfully accessed field {:?}", field.path[0]);
+                } else {
+                    debug!("Could not find field index for {:?}", field.path[0]);
+                }
+            }
+            debug!("Finished processing all view-typed fields");
+        } else {
+            // No view spec, fall back to normal consumption
+            self.consume_operand(location, (operand, span), state);
+        }
+    }
+
+    /// Get the field index for a field name in a struct type
+    fn get_field_index(&self, ty: Ty<'tcx>, field_name: rustc_span::Symbol) -> Option<FieldIdx> {
+        match ty.kind() {
+            ty::Adt(adt_def, _) if adt_def.is_struct() => {
+                let variant = adt_def.non_enum_variant();
+                variant.fields.iter_enumerated().find_map(|(idx, field)| {
+                    if field.name == field_name { Some(idx) } else { None }
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// Look ahead in the current basic block to see if a place is used as an argument
+    /// to a view-typed function call. Returns (callee_def_id, param_index) if found.
+    fn find_view_typed_call_use(
+        &self,
+        place: Place<'tcx>,
+        location: Location,
+    ) -> Option<(rustc_hir::def_id::DefId, usize)> {
+        // Get the terminator of the current basic block
+        let block = &self.body.basic_blocks[location.block];
+        let terminator = block.terminator.as_ref()?;
+
+        // Check if it's a Call terminator
+        if let TerminatorKind::Call { func, args, .. } = &terminator.kind {
+            // Get the callee DefId
+            let callee_def_id = self.get_callee_def_id(func)?;
+
+            // Check if callee has view types
+            if !self.has_view_types(callee_def_id) {
+                return None;
+            }
+
+            // Find which argument uses our place
+            for (param_idx, arg) in args.iter().enumerate() {
+                let arg_place = match &arg.node {
+                    Operand::Move(p) | Operand::Copy(p) => p,
+                    Operand::Constant(_) => continue,
+                };
+
+                // Check if this argument is our place (same local and projection)
+                if arg_place.local == place.local && arg_place.projection == place.projection {
+                    return Some((callee_def_id, param_idx));
+                }
+            }
+        }
+
+        None
+    }
+
     fn consume_operand(
         &mut self,
         location: Location,
@@ -1792,7 +2110,9 @@ impl<'a, 'tcx> MirBorrowckCtxt<'a, '_, 'tcx> {
             self.body,
             place,
             borrow.kind,
+            borrow.view_spec,
             root_place,
+            None, // Access place doesn't have a view spec
             sd,
             places_conflict::PlaceConflictBias::Overlap,
         ) {

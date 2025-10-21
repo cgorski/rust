@@ -1,0 +1,22 @@
+error: view types are not allowed on public functions
+  --> $DIR/pub-method-rejection-test.rs:23:26
+   |
+LL |         pub fn increment(&{mut count} mut self) {
+   |                          ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are limited to `pub(crate)` or private functions
+   = note: this restriction avoids semver coupling and encapsulation issues
+   = help: change `pub fn` to `pub(crate) fn`, or remove the view type annotation
+
+error: view types are not allowed on public functions
+  --> $DIR/pub-method-rejection-test.rs:53:24
+   |
+LL |     pub fn update_meta(&{mut meta} mut self) {
+   |                        ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are limited to `pub(crate)` or private functions
+   = note: this restriction avoids semver coupling and encapsulation issues
+   = help: change `pub fn` to `pub(crate) fn`, or remove the view type annotation
+
+error: aborting due to 2 previous errors
+

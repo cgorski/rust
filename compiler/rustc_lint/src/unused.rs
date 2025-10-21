@@ -1371,7 +1371,7 @@ impl EarlyLintPass for UnusedParens {
 
                 self.with_self_ty_parens = false;
             }
-            ast::TyKind::Ref(_, mut_ty) | ast::TyKind::Ptr(mut_ty) => {
+            ast::TyKind::Ref(_, mut_ty, _) | ast::TyKind::Ptr(mut_ty) => {
                 // If this type itself appears in no-bounds position, we propagate its
                 // potentially tighter constraint or risk a false posive (issue 143653).
                 let own_constraint = self.in_no_bounds_pos.get(&ty.id);

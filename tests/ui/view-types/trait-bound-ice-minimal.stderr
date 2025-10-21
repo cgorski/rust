@@ -1,0 +1,22 @@
+error: patterns aren't allowed in functions without bodies
+  --> $DIR/trait-bound-ice-minimal.rs:8:15
+   |
+LL |     fn update(&{mut value} mut self);
+   |               ^^^^^^^^^^^^^^^^^^^^^ help: remove `mut` from the parameter: `self`
+   |
+   = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+   = note: for more information, see issue #35203 <https://github.com/rust-lang/rust/issues/35203>
+   = note: `#[deny(patterns_in_fns_without_body)]` (part of `#[deny(future_incompatible)]`) on by default
+
+error: view types are not supported on trait method implementations
+  --> $DIR/trait-bound-ice-minimal.rs:18:15
+   |
+LL |     fn update(&{mut value} mut self) {
+   |               ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: view types are restricted to inherent methods
+   = note: trait method support requires trait system integration
+   = help: consider using regular references without view type annotations
+
+error: aborting due to 2 previous errors
+

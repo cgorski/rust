@@ -376,6 +376,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
                         (of_trait, lowered_ty)
                     });
 
+                // Lower original impl items
                 let new_impl_items = self
                     .arena
                     .alloc_from_iter(impl_items.iter().map(|item| self.lower_impl_item_ref(item)));
@@ -1152,6 +1153,8 @@ impl<'hir> LoweringContext<'_, 'hir> {
         hir::ImplItemId { owner_id: self.owner_id(i.id) }
     }
 
+    /// Generate a wrapper function for an async method with view types.
+
     fn lower_defaultness(
         &self,
         d: Defaultness,
@@ -1291,6 +1294,7 @@ impl<'hir> LoweringContext<'_, 'hir> {
             return self.lower_fn_body_block(decl, body, contract);
         };
         // FIXME(contracts): Support contracts on async fn.
+
         self.lower_body(|this| {
             let (parameters, expr) = this.lower_coroutine_body_with_moved_arguments(
                 decl,

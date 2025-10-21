@@ -184,6 +184,7 @@ struct OutOfScopePrecomputer<'a, 'tcx> {
     body: &'a Body<'tcx>,
     regioncx: &'a RegionInferenceContext<'tcx>,
     borrows_out_of_scope_at_location: FxIndexMap<Location, Vec<BorrowIndex>>,
+    borrow_set: &'a BorrowSet<'tcx>,
 }
 
 impl<'tcx> OutOfScopePrecomputer<'_, 'tcx> {
@@ -192,12 +193,15 @@ impl<'tcx> OutOfScopePrecomputer<'_, 'tcx> {
         regioncx: &RegionInferenceContext<'tcx>,
         borrow_set: &BorrowSet<'tcx>,
     ) -> FxIndexMap<Location, Vec<BorrowIndex>> {
+        debug!("VIEW_TYPES_LIFETIME: Computing borrow scopes, total borrows: {}", borrow_set.len());
+
         let mut prec = OutOfScopePrecomputer {
             visited: DenseBitSet::new_empty(body.basic_blocks.len()),
             visit_stack: vec![],
             body,
             regioncx,
             borrows_out_of_scope_at_location: FxIndexMap::default(),
+            borrow_set,
         };
         for (borrow_index, borrow_data) in borrow_set.iter_enumerated() {
             let borrow_region = borrow_data.region;
@@ -232,6 +236,20 @@ impl<'tcx> OutOfScopePrecomputer<'_, 'tcx> {
             // If region does not contain a point at the location, then add to list and skip
             // successor locations.
             debug!("borrow {:?} gets killed at {:?}", borrow_index, kill_location);
+
+            // OPTION 3 DEBUG: Track when view-typed borrows go out of scope
+            let borrow_data = &self.borrow_set[borrow_index];
+            if borrow_data.view_spec.is_some() {
+                debug!(
+                    "VIEW_TYPES_LIFETIME: View-typed borrow {:?} (region {:?}) goes out of scope at {:?}",
+                    borrow_index, borrow_region, kill_location
+                );
+                debug!(
+                    "VIEW_TYPES_LIFETIME: Borrowed place: {:?}, view_spec: {:?}",
+                    borrow_data.borrowed_place, borrow_data.view_spec
+                );
+            }
+
             self.borrows_out_of_scope_at_location
                 .entry(kill_location)
                 .or_default()

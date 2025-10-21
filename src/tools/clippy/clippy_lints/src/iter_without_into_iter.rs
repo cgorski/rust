@@ -124,7 +124,7 @@ fn is_ty_exported(cx: &LateContext<'_>, ty: Ty<'_>) -> bool {
 impl LateLintPass<'_> for IterWithoutIntoIter {
     fn check_item(&mut self, cx: &LateContext<'_>, item: &rustc_hir::Item<'_>) {
         if let ItemKind::Impl(imp) = item.kind
-            && let TyKind::Ref(_, self_ty_without_ref) = &imp.self_ty.kind
+            && let TyKind::Ref(_, self_ty_without_ref, _) = &imp.self_ty.kind
             && let Some(of_trait) = imp.of_trait
             && of_trait
                 .trait_ref

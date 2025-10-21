@@ -401,7 +401,7 @@ fn check_fn_args<'cx, 'tcx: 'cx>(
         .filter_map(move |(i, (ty, hir_ty))| {
             if let ty::Ref(_, ty, mutability) = *ty.kind()
                 && let  ty::Adt(adt, args) = *ty.kind()
-                && let TyKind::Ref(lt, ref ty) = hir_ty.kind
+                && let TyKind::Ref(lt, ref ty, _) = hir_ty.kind
                 && let TyKind::Path(QPath::Resolved(None, path)) = ty.ty.kind
                 // Check that the name as typed matches the actual name of the type.
                 // e.g. `fn foo(_: &Foo)` shouldn't trigger the lint when `Foo` is an alias for `Vec`
@@ -715,7 +715,7 @@ struct LifetimeVisitor<'tcx> {
 
 impl<'tcx> Visitor<'tcx> for LifetimeVisitor<'tcx> {
     fn visit_ty(&mut self, ty: &'tcx hir::Ty<'tcx, hir::AmbigArg>) {
-        if let TyKind::Ref(lt, ref m) = ty.kind {
+        if let TyKind::Ref(lt, ref m, _) = ty.kind {
             self.result.push((lt, Some(m.mutbl), ty.span));
         }
         hir::intravisit::walk_ty(self, ty);

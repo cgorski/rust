@@ -389,9 +389,28 @@ impl<'a> State<'a> {
                 self.word("*");
                 self.print_mt(mt, true);
             }
-            hir::TyKind::Ref(lifetime, ref mt) => {
+            hir::TyKind::Ref(lifetime, ref mt, ref view_spec) => {
                 self.word("&");
                 self.print_opt_lifetime(lifetime);
+                if let Some(vs) = view_spec {
+                    self.word("{");
+                    for (i, field) in vs.fields.iter().enumerate() {
+                        if i > 0 {
+                            self.word(", ");
+                        }
+                        if field.mutability == hir::Mutability::Mut {
+                            self.word("mut ");
+                        }
+                        // Print path components separated by dots
+                        for (j, component) in field.path.iter().enumerate() {
+                            if j > 0 {
+                                self.word(".");
+                            }
+                            self.word(component.to_string());
+                        }
+                    }
+                    self.word("} ");
+                }
                 self.print_mt(mt, false);
             }
             hir::TyKind::Never => {

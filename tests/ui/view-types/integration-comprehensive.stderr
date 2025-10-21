@@ -1,0 +1,12 @@
+error: view-typed functions cannot return references
+  --> $DIR/integration-comprehensive.rs:403:18
+   |
+LL |     fn get_color(&{style.color} self) -> &str {
+   |                  ^^^^^^^^^^^^^^^^^^^
+   |
+   = note: returning references from view-typed methods can cause soundness issues
+   = note: this restriction may be lifted in a future version with proper region inference integration
+   = help: consider returning an owned value or restructuring the code
+
+error: aborting due to 1 previous error
+

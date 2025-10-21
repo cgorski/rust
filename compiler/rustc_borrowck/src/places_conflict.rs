@@ -90,7 +90,9 @@ pub fn places_conflict<'tcx>(
         body,
         borrow_place,
         BorrowKind::Mut { kind: MutBorrowKind::TwoPhaseBorrow },
+        None, // No view spec for general places_conflict
         access_place.as_ref(),
+        None, // No view spec for access
         AccessDepth::Deep,
         bias,
     )
@@ -106,16 +108,116 @@ pub(super) fn borrow_conflicts_with_place<'tcx>(
     body: &Body<'tcx>,
     borrow_place: Place<'tcx>,
     borrow_kind: BorrowKind,
+    borrow_view_spec: Option<ty::ViewSpec<'tcx>>,
     access_place: PlaceRef<'tcx>,
+    access_view_spec: Option<ty::ViewSpec<'tcx>>,
     access: AccessDepth,
     bias: PlaceConflictBias,
 ) -> bool {
     let borrow_local = borrow_place.local;
     let access_local = access_place.local;
 
+    debug!(
+        "VIEW_TYPES: borrow_conflicts_with_place called: \
+         borrow_place={:?} (view_spec={:?}), \
+         access_place={:?} (view_spec={:?})",
+        borrow_place, borrow_view_spec, access_place, access_view_spec
+    );
+
     if borrow_local != access_local {
         // We have proven the borrow disjoint - further projections will remain disjoint.
+        debug!("VIEW_TYPES: Different locals, no conflict");
         return false;
+    }
+
+    // VIEW TYPES: If both borrows have view specs, use the proven conflict algorithm
+    // This implements the algorithm from formalization/Core_Proven.v
+    // Theorems: different_fields_no_conflict, disjoint_fields_no_conflict
+    if let (Some(borrow_vs), Some(access_vs)) = (borrow_view_spec, access_view_spec) {
+        let conflicts = borrow_vs.conflicts_with(&access_vs);
+        debug!("VIEW_TYPES: Both have view specs - conflicts_with result: {}", conflicts);
+        if conflicts {
+            // View specs conflict on at least one field - definite conflict!
+            // The proven algorithm has detected overlapping field access
+            debug!(
+                "VIEW_TYPES: view specs conflict, returning true: {:?} vs {:?}",
+                borrow_vs, access_vs
+            );
+            return true;
+        } else {
+            // Proven safe: disjoint view specs never conflict
+            // Theorem: disjoint_fields_no_conflict
+            debug!(
+                "VIEW_TYPES: view specs disjoint, returning false (no conflict): {:?} vs {:?}",
+                borrow_vs, access_vs
+            );
+            return false;
+        }
+    }
+
+    // VIEW TYPES Case 2: Borrow has view spec, access is a field projection
+    // Check if the projected field is in the borrow's view spec
+    if let Some(borrow_vs) = borrow_view_spec {
+        if let Some(access_field) = get_first_field_name(body, access_place) {
+            debug!(
+                "VIEW_TYPES Case 2: borrow has view spec {:?}, access is field {:?}",
+                borrow_vs, access_field
+            );
+            if !borrow_vs.contains_field(access_field) {
+                // Access is to a field NOT in the view spec - no conflict!
+                // Theorem: different_fields_no_conflict
+                debug!(
+                    "VIEW_TYPES: access field {:?} not in borrow view spec {:?}, no conflict",
+                    access_field, borrow_vs
+                );
+                return false;
+            }
+            debug!(
+                "VIEW_TYPES: access field {:?} IS in borrow view spec {:?}, checking mutability",
+                access_field, borrow_vs
+            );
+            // Field is in view spec - continue to normal conflict checking
+        }
+    }
+
+    // VIEW TYPES Case 3: Borrow is a field projection, access has view spec
+    // Check if the borrowed field is in the access view spec
+    if let Some(access_vs) = access_view_spec {
+        debug!(
+            "VIEW_TYPES Case 3: access has view spec {:?}, checking borrow place {:?}",
+            access_vs, borrow_place
+        );
+
+        if let Some(borrow_field) = get_first_field_name(body, borrow_place.as_ref()) {
+            debug!("VIEW_TYPES Case 3: extracted borrow field name: {:?}", borrow_field);
+            debug!(
+                "VIEW_TYPES Case 3: checking if field {:?} is in view spec {:?}",
+                borrow_field, access_vs
+            );
+
+            let field_in_spec = access_vs.contains_field(borrow_field);
+            debug!("VIEW_TYPES Case 3: contains_field result = {}", field_in_spec);
+
+            if !field_in_spec {
+                // Borrow is of a field NOT in the access view spec - no conflict!
+                // Theorem: different_fields_no_conflict
+                debug!(
+                    "VIEW_TYPES Case 3: RETURNING FALSE - borrow field {:?} not in access view spec {:?}",
+                    borrow_field, access_vs
+                );
+                return false;
+            }
+            debug!(
+                "VIEW_TYPES Case 3: borrow field {:?} IS in access view spec {:?}, falling through",
+                borrow_field, access_vs
+            );
+            // Field is in view spec - continue to normal conflict checking
+        } else {
+            debug!(
+                "VIEW_TYPES Case 3: could not extract field name from borrow place {:?}",
+                borrow_place
+            );
+        }
     }
 
     // This Local/Local case is handled by the more general code below, but
@@ -282,6 +384,63 @@ fn place_components_conflict<'tcx>(
         debug!("borrow_conflicts_with_place: full borrow, CONFLICT");
         true
     }
+}
+
+/// Extract the first field name from a place projection, if any.
+///
+/// For `s.field_a.field_b`, returns Some(field_a).
+/// For `s[0].field_a`, returns Some(field_a).
+/// For `s`, returns None.
+///
+/// This is used for view spec conflict detection to check if a field
+/// projection overlaps with fields mentioned in a view spec.
+fn get_first_field_name<'tcx>(
+    body: &Body<'tcx>,
+    place: PlaceRef<'tcx>,
+) -> Option<rustc_span::Symbol> {
+
+    // Get the base type by finding the local
+    let base_local = place.local;
+    let mut current_ty = body.local_decls[base_local].ty;
+
+
+    // Walk through projections to find the first field access
+    for elem in place.projection {
+        match *elem {
+            ProjectionElem::Field(field_idx, _) => {
+                // Found a field projection - get the field name from the type
+                if let ty::Adt(adt_def, _) = current_ty.kind() {
+                    let variant = adt_def.non_enum_variant();
+                    if let Some(field_def) = variant.fields.get(field_idx) {
+                        return Some(field_def.name);
+                    }
+                }
+                //- return None (conservative)
+                return None;
+            }
+            ProjectionElem::Deref => {
+                // Update type through deref
+                current_ty = current_ty.builtin_deref(true)?;
+            }
+            ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
+                // For arrays/slices, continue with element type
+                if let ty::Array(elem_ty, _) | ty::Slice(elem_ty) = current_ty.kind() {
+                    current_ty = *elem_ty;
+                } else {
+                    return None;
+                }
+            }
+            ProjectionElem::Subslice { .. } => {
+                // Subslice keeps the same type
+            }
+            ProjectionElem::Downcast(_, _)
+            | ProjectionElem::OpaqueCast(_)
+            | ProjectionElem::UnwrapUnsafeBinder(_) => {
+                // These don't change what field we're looking for
+            }
+        }
+    }
+    None
 }
 
 // Given that the bases of `elem1` and `elem2` are always either equal

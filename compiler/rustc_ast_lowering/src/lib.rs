@@ -146,6 +146,12 @@ struct LoweringContext<'a, 'hir> {
     delayed_lints: Vec<DelayedLint>,
 
     attribute_parser: AttributeParser<'hir>,
+
+    /// View type borrow mapping for async functions with view types.
+    /// Maps field paths to (borrow_ident, borrow_hir_id) for rewriting self.field -> borrow
+    /// Only set during lowering of async functions with view type parameters.
+    view_type_borrow_mapping:
+        Option<rustc_data_structures::fx::FxHashMap<Vec<Symbol>, (Ident, HirId)>>,
 }
 
 impl<'a, 'hir> LoweringContext<'a, 'hir> {
@@ -200,6 +206,34 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                 Late,
             ),
             delayed_lints: Vec::new(),
+            view_type_borrow_mapping: None,
+        }
+    }
+
+    /// Extract field path from self.field.subfield expressions (for view type async transformation)
+    fn extract_field_path_from_ast(&self, expr: &ast::Expr) -> Option<Vec<Symbol>> {
+        match &expr.kind {
+            ast::ExprKind::Field(base, field_ident) => {
+                // Check if base is self
+                if let ast::ExprKind::Path(None, path) = &base.kind {
+                    if path.segments.len() == 1
+                        && path.segments[0].ident.name == rustc_span::kw::SelfLower
+                    {
+                        // self.field
+                        return Some(vec![field_ident.name]);
+                    }
+                }
+
+                // Check if base is self.a (nested)
+                if let Some(mut base_path) = self.extract_field_path_from_ast(base) {
+                    // self.a.b
+                    base_path.push(field_ident.name);
+                    return Some(base_path);
+                }
+
+                None
+            }
+            _ => None,
         }
     }
 
@@ -1290,13 +1324,15 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
             TyKind::Err(guar) => hir::TyKind::Err(*guar),
             TyKind::Slice(ty) => hir::TyKind::Slice(self.lower_ty(ty, itctx)),
             TyKind::Ptr(mt) => hir::TyKind::Ptr(self.lower_mt(mt, itctx)),
-            TyKind::Ref(region, mt) => {
+            TyKind::Ref(region, mt, view_spec) => {
                 let lifetime = self.lower_ty_direct_lifetime(t, *region);
-                hir::TyKind::Ref(lifetime, self.lower_mt(mt, itctx))
+                let view_spec_hir =
+                    view_spec.as_ref().map(|vs| self.lower_view_spec(vs, &mt.ty, t.span));
+                hir::TyKind::Ref(lifetime, self.lower_mt(mt, itctx), view_spec_hir)
             }
             TyKind::PinnedRef(region, mt) => {
                 let lifetime = self.lower_ty_direct_lifetime(t, *region);
-                let kind = hir::TyKind::Ref(lifetime, self.lower_mt(mt, itctx));
+                let kind = hir::TyKind::Ref(lifetime, self.lower_mt(mt, itctx), None);
                 let span = self.lower_span(t.span);
                 let arg = hir::Ty { kind, span, hir_id: self.next_id() };
                 let args = self.arena.alloc(hir::GenericArgs {
@@ -1716,7 +1752,7 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
                     // Given we are only considering `ImplicitSelf` types, we needn't consider
                     // the case where we have a mutable pattern to a reference as that would
                     // no longer be an `ImplicitSelf`.
-                    TyKind::Ref(_, mt) | TyKind::PinnedRef(_, mt)
+                    TyKind::Ref(_, mt, _) | TyKind::PinnedRef(_, mt)
                         if mt.ty.kind.is_implicit_self() =>
                     {
                         match mt.mutbl {
@@ -2161,6 +2197,35 @@ impl<'a, 'hir> LoweringContext<'a, 'hir> {
 
     fn lower_mt(&mut self, mt: &MutTy, itctx: ImplTraitContext) -> hir::MutTy<'hir> {
         hir::MutTy { ty: self.lower_ty(&mt.ty, itctx), mutbl: mt.mutbl }
+    }
+
+    /// Lower a view specification, validating that fields exist in the referenced type.
+    fn lower_view_spec(
+        &mut self,
+        view_spec: &ast::ViewSpec,
+        _referenced_ty: &ast::Ty,
+        _span: Span,
+    ) -> &'hir hir::ViewSpec<'hir> {
+        // Convert AST ViewField to HIR ViewField
+        let fields = self.arena.alloc_from_iter(view_spec.fields.iter().map(|vf| hir::ViewField {
+            path: self.arena.alloc_from_iter(vf.path.iter().copied()),
+            mutability: vf.mutability,
+        }));
+
+        // NOTE: Validation is intentionally NOT done here.
+        // At this stage (AST -> HIR lowering), we don't have full type information.
+        // The referenced_ty hasn't been resolved to a concrete type yet.
+        //
+        // Validation happens during type checking (in rustc_hir_typeck), where we:
+        // - Verify referenced_ty resolves to a struct type
+        // - Check that all fields in view_spec exist in that struct
+        // - Validate privacy of accessed fields
+        // - Check for duplicate field names in the view spec
+        //
+        // This is the same pattern as other type-level validations in Rust.
+        // See: rustc_hir_analysis for where this validation will occur.
+
+        self.arena.alloc(hir::ViewSpec { fields })
     }
 
     #[instrument(level = "debug", skip(self), ret)]

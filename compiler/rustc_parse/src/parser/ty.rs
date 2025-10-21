@@ -8,9 +8,10 @@ use rustc_ast::{
 };
 use rustc_data_structures::stack::ensure_sufficient_stack;
 use rustc_errors::{Applicability, Diag, PResult};
-use rustc_span::{ErrorGuaranteed, Ident, Span, kw, sym};
+use rustc_span::{ErrorGuaranteed, Ident, Span, Symbol, kw, sym};
 use thin_vec::{ThinVec, thin_vec};
 
+use super::expr::DestructuredFloat;
 use super::{Parser, PathStyle, SeqSep, TokenType, Trailing};
 use crate::errors::{
     self, AttributeOnEmptyType, AttributeOnType, DynAfterMut, ExpectedFnPathFoundFnKeyword,
@@ -546,7 +547,7 @@ impl<'a> Parser<'a> {
                     Applicability::MaybeIncorrect,
                 );
                 err.emit();
-                Ok(TyKind::Ref(Some(lt), MutTy { ty, mutbl }))
+                Ok(TyKind::Ref(Some(lt), MutTy { ty, mutbl }, None))
             }
             Err(diag) => {
                 diag.cancel();
@@ -692,7 +693,17 @@ impl<'a> Parser<'a> {
 
     fn parse_borrowed_pointee(&mut self) -> PResult<'a, TyKind> {
         let and_span = self.prev_token.span;
+
+        // Parse lifetime first: &'a
         let mut opt_lifetime = self.check_lifetime().then(|| self.expect_lifetime());
+
+        // Parse view spec if present: &'a {mut field1, field2}
+        let view_spec = if self.token.kind == token::OpenBrace {
+            self.psess.gated_spans.gate(sym::view_types, self.token.span);
+            Some(self.parse_view_spec()?)
+        } else {
+            None
+        };
         let (pinned, mut mutbl) = match self.parse_pin_and_mut() {
             Some(pin_mut) => pin_mut,
             None => (Pinnedness::Not, self.parse_mutability()),
@@ -733,9 +744,169 @@ impl<'a> Parser<'a> {
         }
         let ty = self.parse_ty_no_plus()?;
         Ok(match pinned {
-            Pinnedness::Not => TyKind::Ref(opt_lifetime, MutTy { ty, mutbl }),
+            Pinnedness::Not => TyKind::Ref(opt_lifetime, MutTy { ty, mutbl }, view_spec),
             Pinnedness::Pinned => TyKind::PinnedRef(opt_lifetime, MutTy { ty, mutbl }),
         })
+    }
+
+    /// Parse a field component: either an identifier (x, y) or a tuple index (0, 1, 2)
+    fn parse_field_component(&mut self) -> PResult<'a, Symbol> {
+        // Check if current token is an identifier (for named fields)
+        // Use lookahead to avoid creating error diagnostics
+        if self.token.is_ident() {
+            return Ok(self.parse_ident()?.name);
+        }
+
+        // If not an identifier, check if it's an integer literal (for tuple fields)
+        if let token::Literal(lit) = self.token.kind {
+            if let token::LitKind::Integer = lit.kind {
+                let symbol = lit.symbol;
+                let span = self.token.span;
+
+                // Reject integer literals with suffixes (e.g., 0u32)
+                if let Some(suffix) = lit.suffix {
+                    self.bump(); // Consume the token before erroring
+                    let mut err = self.dcx().struct_span_err(
+                        span,
+                        format!("tuple field index cannot have a suffix: `{}`", suffix),
+                    );
+                    err.help("use just the number without type suffix, like `0` instead of `0u32`");
+                    return Err(err);
+                }
+
+                self.bump(); // Consume the integer token
+
+                // Validate it's a valid tuple index (non-negative integer)
+                let s = symbol.as_str();
+                if s.starts_with('-') {
+                    let mut err = self
+                        .dcx()
+                        .struct_span_err(span, "tuple field indices must be non-negative");
+                    err.help("tuple fields are indexed starting from 0");
+                    return Err(err);
+                }
+
+                if let Ok(_index) = s.parse::<usize>() {
+                    return Ok(symbol);
+                } else {
+                    let mut err = self
+                        .dcx()
+                        .struct_span_err(span, format!("invalid tuple field index: {}", symbol));
+                    err.help("tuple field indices must be valid non-negative integers");
+                    return Err(err);
+                }
+            }
+        }
+
+        // Neither identifier nor valid integer
+        Err(self.dcx().struct_span_err(self.token.span, "expected field name or tuple index"))
+    }
+
+    /// Parse field component(s) and accumulate them into path.
+    /// Handles float literals by decomposing them into multiple tuple index components.
+    /// For example, `0.0` becomes `["0", "0"]`, and `0.1` becomes `["0", "1"]`.
+    fn parse_and_accumulate_field_components(
+        &mut self,
+        path: &mut ThinVec<Symbol>,
+    ) -> PResult<'a, ()> {
+        // Check if current token is a float literal (e.g., 0.0, 0.1, 1.2)
+        if let token::Literal(lit) = self.token.kind {
+            if let token::LitKind::Float = lit.kind {
+                let symbol = lit.symbol;
+                let span = self.token.span;
+
+                // Reject float literals with suffixes (e.g., 0.0f32)
+                if let Some(suffix) = lit.suffix {
+                    self.bump(); // Consume the token before erroring
+                    let mut err = self.dcx().struct_span_err(
+                        span,
+                        format!("tuple field index cannot have a suffix: `{}`", suffix),
+                    );
+                    err.help(
+                        "use just the numbers without type suffix, like `0.0` instead of `0.0f32`",
+                    );
+                    return Err(err);
+                }
+
+                self.bump(); // Consume the float token
+
+                // Decompose the float into components using existing break_up_float mechanism
+                match self.break_up_float(symbol, span) {
+                    DestructuredFloat::Single(sym, _) => {
+                        // Single number (e.g., "1e2") - treat as one component
+                        // This handles cases like scientific notation
+                        path.push(sym);
+                    }
+                    DestructuredFloat::TrailingDot(sym, _, _) => {
+                        // Number with trailing dot (e.g., "0.")
+                        // Add the number; the outer loop will handle the explicit dot
+                        path.push(sym);
+                    }
+                    DestructuredFloat::MiddleDot(sym1, _, _, sym2, _) => {
+                        // Two numbers with dot (e.g., "0.0" or "0.1")
+                        // Add both components - this is the main nested tuple case
+                        path.push(sym1);
+                        path.push(sym2);
+                    }
+                    DestructuredFloat::Error => {
+                        return Err(self
+                            .dcx()
+                            .struct_span_err(span, "invalid float literal in field path"));
+                    }
+                }
+                return Ok(());
+            }
+        }
+
+        // Not a float - parse single component normally (identifier or integer)
+        path.push(self.parse_field_component()?);
+        Ok(())
+    }
+
+    /// Parse view specification for partial borrows: `{mut field1, field2}` or `{mut 0, 1}`
+    /// Supports nested tuple fields like `{mut 0.0}` by decomposing float literals.
+    pub(super) fn parse_view_spec(&mut self) -> PResult<'a, ast::ViewSpec> {
+        self.expect(exp!(OpenBrace))?;
+
+        let mut fields = thin_vec![];
+
+        loop {
+            // Parse optional 'mut' keyword
+            let mutability =
+                if self.eat_keyword(exp!(Mut)) { Mutability::Mut } else { Mutability::Not };
+
+            // Parse field path (supports nested access like outer.inner.value, 0.1, or blah.0.2.moo)
+            // The new method handles float decomposition: 0.0 -> ["0", "0"]
+            let mut path = thin_vec![];
+            self.parse_and_accumulate_field_components(&mut path)?;
+
+            // Continue parsing dotted components
+            while self.eat(exp!(Dot)) {
+                self.parse_and_accumulate_field_components(&mut path)?;
+            }
+
+            fields.push(ast::ViewField { path, mutability });
+
+            // Check for comma or end of list
+            if !self.eat(exp!(Comma)) {
+                break;
+            }
+
+            // Allow trailing comma
+            if self.token.kind == token::CloseBrace {
+                break;
+            }
+        }
+
+        self.expect(exp!(CloseBrace))?;
+
+        if fields.is_empty() {
+            return Err(self
+                .dcx()
+                .struct_span_err(self.token.span, "view specification cannot be empty"));
+        }
+
+        Ok(ast::ViewSpec { fields })
     }
 
     /// Parses `pin` and `mut` annotations on references.

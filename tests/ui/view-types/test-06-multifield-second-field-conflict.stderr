@@ -1,0 +1,51 @@
+error[E0499]: cannot borrow `s.y` as mutable more than once at a time
+  --> $DIR/test-06-multifield-second-field-conflict.rs:61:5
+   |
+LL |     let y_ref = &mut s.y;
+   |                 -------- first mutable borrow occurs here
+...
+LL |     s.use_z_and_y();
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     *y_ref = 100;
+   |     ------------ first borrow later used here
+
+error[E0499]: cannot borrow `s.c` as mutable more than once at a time
+  --> $DIR/test-06-multifield-second-field-conflict.rs:120:5
+   |
+LL |     let c_ref = &mut s.c;
+   |                 -------- first mutable borrow occurs here
+...
+LL |     s.use_dec();
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     *c_ref = 100;
+   |     ------------ first borrow later used here
+
+error[E0499]: cannot borrow `s.y` as mutable more than once at a time
+  --> $DIR/test-06-multifield-second-field-conflict.rs:138:5
+   |
+LL |     let y_ref = &mut s.y;
+   |                 -------- first mutable borrow occurs here
+...
+LL |     s.use_x_and_y();
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     *y_ref = 100;
+   |     ------------ first borrow later used here
+
+error[E0499]: cannot borrow `s.d` as mutable more than once at a time
+  --> $DIR/test-06-multifield-second-field-conflict.rs:162:5
+   |
+LL |     let d_ref = &mut s.d;
+   |                 -------- first mutable borrow occurs here
+...
+LL |     s.use_abcd();
+   |     ^ second mutable borrow occurs here
+LL |
+LL |     *d_ref = 100;
+   |     ------------ first borrow later used here
+
+error: aborting due to 4 previous errors
+
+For more information about this error, try `rustc --explain E0499`.

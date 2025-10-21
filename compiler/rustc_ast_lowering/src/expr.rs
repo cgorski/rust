@@ -279,6 +279,35 @@ impl<'hir> LoweringContext<'_, 'hir> {
                     self.lower_expr(er),
                 ),
                 ExprKind::Field(el, ident) => {
+                    // Check if we're in a view type async context and should redirect self.field
+                    if let Some(ref borrow_mapping) = self.view_type_borrow_mapping {
+                        // Extract the field path from this expression
+                        if let Some(field_path) = self.extract_field_path_from_ast(e) {
+                            if let Some(&(borrow_ident, borrow_hir_id)) =
+                                borrow_mapping.get(&field_path)
+                            {
+                                eprintln!(
+                                    "    Redirecting self.{} -> *{} during lowering",
+                                    field_path
+                                        .iter()
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join("."),
+                                    borrow_ident
+                                );
+                                // Return a deref of the borrow variable instead
+                                let borrow_expr =
+                                    self.expr_ident(e.span, borrow_ident, borrow_hir_id);
+                                // Construct full Expr and return early
+                                return hir::Expr {
+                                    hir_id: expr_hir_id,
+                                    kind: hir::ExprKind::Unary(hir::UnOp::Deref, borrow_expr),
+                                    span: self.lower_span(e.span),
+                                };
+                            }
+                        }
+                    }
+                    // Normal field access lowering
                     hir::ExprKind::Field(self.lower_expr(el), self.lower_ident(*ident))
                 }
                 ExprKind::Index(el, er, brackets_span) => hir::ExprKind::Index(
